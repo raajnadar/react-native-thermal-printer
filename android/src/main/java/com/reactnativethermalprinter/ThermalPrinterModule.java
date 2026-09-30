@@ -1,6 +1,7 @@
 package com.reactnativethermalprinter;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 
@@ -44,6 +45,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 @ReactModule(name = ThermalPrinterModule.NAME)
@@ -87,8 +89,11 @@ public class ThermalPrinterModule extends ReactContextBaseJavaModule {
   @ReactMethod
   public void printBluetooth(String macAddress, String payload, boolean autoCut, boolean openCashbox, double mmFeedPaper, double printerDpi, double printerWidthMM, double printerNbrCharactersPerLine,String encoding, int charsetId, Promise promise) {
     this.jsPromise = promise;
-    BluetoothConnection btPrinter;
+    if (!ensureBluetoothPermissions()) {
+      return;
+    }
 
+    BluetoothConnection btPrinter;
     if (TextUtils.isEmpty(macAddress)) {
       btPrinter = BluetoothPrintersConnections.selectFirstPaired();
     } else {
@@ -97,62 +102,75 @@ public class ThermalPrinterModule extends ReactContextBaseJavaModule {
 
     if (btPrinter == null) {
       this.jsPromise.reject("Connection Error", "Bluetooth Device Not Found");
+      return;
     }
 
-    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(getCurrentActivity(), Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-      ActivityCompat.requestPermissions(getCurrentActivity(), new String[]{Manifest.permission.BLUETOOTH}, 1);
-    } else if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(getCurrentActivity(), Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-      ActivityCompat.requestPermissions(getCurrentActivity(), new String[]{Manifest.permission.BLUETOOTH_ADMIN}, 1);
-    } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(getCurrentActivity(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-      ActivityCompat.requestPermissions(getCurrentActivity(), new String[]{Manifest.permission.BLUETOOTH_CONNECT}, 1);
-    } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(getCurrentActivity(), Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-      ActivityCompat.requestPermissions(getCurrentActivity(), new String[]{Manifest.permission.BLUETOOTH_SCAN}, 1);
-    } else {
-      try {
-        this.printIt(btPrinter.connect(), payload, autoCut, openCashbox, mmFeedPaper, printerDpi, printerWidthMM, printerNbrCharactersPerLine, encoding, charsetId);
-      } catch (Exception e) {
-        this.jsPromise.reject("Connection Error", e.getMessage());
-      }
+    try {
+      this.printIt(btPrinter.connect(), payload, autoCut, openCashbox, mmFeedPaper, printerDpi, printerWidthMM, printerNbrCharactersPerLine, encoding, charsetId);
+    } catch (Exception e) {
+      this.jsPromise.reject("Connection Error", e.getMessage());
     }
   }
 
   @ReactMethod
   public void getBluetoothDeviceList(Promise promise) {
     this.jsPromise = promise;
-    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(getCurrentActivity(), Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
-      ActivityCompat.requestPermissions(getCurrentActivity(), new String[]{Manifest.permission.BLUETOOTH}, 1);
-    } else if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(getCurrentActivity(), Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
-      ActivityCompat.requestPermissions(getCurrentActivity(), new String[]{Manifest.permission.BLUETOOTH_ADMIN}, 1);
-    } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(getCurrentActivity(), Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-      ActivityCompat.requestPermissions(getCurrentActivity(), new String[]{Manifest.permission.BLUETOOTH_CONNECT}, 1);
-    } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && ContextCompat.checkSelfPermission(getCurrentActivity(), Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-      ActivityCompat.requestPermissions(getCurrentActivity(), new String[]{Manifest.permission.BLUETOOTH_SCAN}, 1);
-    } else {
-      try {
-        Set<BluetoothDevice> pairedDevices = BluetoothAdapter.getDefaultAdapter().getBondedDevices();
-        WritableArray rnArray = new WritableNativeArray();
-        if (pairedDevices.size() > 0) {
-          int index = 0;
-          for (BluetoothDevice device : pairedDevices) {
-            btDevicesList.add(new BluetoothConnection(device));
-            JSONObject jsonObj = new JSONObject();
+    if (!ensureBluetoothPermissions()) {
+      return;
+    }
 
-            String deviceName = device.getName();
-            String macAddress = device.getAddress();
+    try {
+      Set<BluetoothDevice> pairedDevices = BluetoothAdapter.getDefaultAdapter().getBondedDevices();
+      WritableArray rnArray = new WritableNativeArray();
+      if (pairedDevices.size() > 0) {
+        int index = 0;
+        for (BluetoothDevice device : pairedDevices) {
+          btDevicesList.add(new BluetoothConnection(device));
+          JSONObject jsonObj = new JSONObject();
 
-            jsonObj.put("deviceName", deviceName);
-            jsonObj.put("macAddress", macAddress);
-            WritableMap wmap = convertJsonToMap(jsonObj);
-            rnArray.pushMap(wmap);
-          }
+          String deviceName = device.getName();
+          String macAddress = device.getAddress();
+
+          jsonObj.put("deviceName", deviceName);
+          jsonObj.put("macAddress", macAddress);
+          WritableMap wmap = convertJsonToMap(jsonObj);
+          rnArray.pushMap(wmap);
         }
-        jsPromise.resolve(rnArray);
+      }
+      jsPromise.resolve(rnArray);
 
 
-      } catch (Exception e) {
-        this.jsPromise.reject("Bluetooth Error", e.getMessage());
+    } catch (Exception e) {
+      this.jsPromise.reject("Bluetooth Error", e.getMessage());
+    }
+  }
+
+  /**
+   * Rejects the pending promise when a Bluetooth permission is missing. The
+   * permission prompt does not report back to this module, so the caller must
+   * call again after the user grants the permissions.
+   */
+  private boolean ensureBluetoothPermissions() {
+    String[] required = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+      ? new String[]{Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN}
+      : new String[]{Manifest.permission.BLUETOOTH, Manifest.permission.BLUETOOTH_ADMIN};
+
+    List<String> missing = new ArrayList<>();
+    for (String permission : required) {
+      if (ContextCompat.checkSelfPermission(getReactApplicationContext(), permission) != PackageManager.PERMISSION_GRANTED) {
+        missing.add(permission);
       }
     }
+    if (missing.isEmpty()) {
+      return true;
+    }
+
+    Activity activity = getCurrentActivity();
+    if (activity != null) {
+      ActivityCompat.requestPermissions(activity, missing.toArray(new String[0]), 1);
+    }
+    this.jsPromise.reject("Permission Error", "Missing Bluetooth permissions: " + TextUtils.join(", ", missing));
+    return false;
   }
 
   private Bitmap getBitmapFromUrl(String url) {
