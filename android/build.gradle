@@ -2,7 +2,7 @@ buildscript {
     if (project == rootProject) {
         repositories {
             google()
-            jcenter()
+            mavenCentral()
         }
 
         dependencies {
@@ -18,11 +18,11 @@ def safeExtGet(prop, fallback) {
 }
 
 android {
-    compileSdkVersion safeExtGet('ThermalPrinter_compileSdkVersion', 33)
-    buildToolsVersion safeExtGet('ThermalPrinter_buildToolsVersion', '33.0.0')
+    namespace "com.reactnativethermalprinter"
+    compileSdk safeExtGet('ThermalPrinter_compileSdkVersion', 35)
     defaultConfig {
-        minSdkVersion safeExtGet('ThermalPrinter_minSdkVersion', 21)
-        targetSdkVersion safeExtGet('ThermalPrinter_targetSdkVersion', 33)
+        minSdk safeExtGet('ThermalPrinter_minSdkVersion', 24)
+        targetSdk safeExtGet('ThermalPrinter_targetSdkVersion', 35)
         versionCode 1
         versionName "1.0"
 
@@ -33,12 +33,12 @@ android {
             minifyEnabled false
         }
     }
-    lintOptions {
+    lint {
         disable 'GradleCompatible'
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 }
 
@@ -49,7 +49,7 @@ repositories {
         url("$rootDir/../node_modules/react-native/android")
     }
     google()
-    jcenter()
+    mavenCentral()
     maven { url 'https://www.jitpack.io' }
 }
 
