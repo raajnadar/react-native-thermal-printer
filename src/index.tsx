@@ -1,6 +1,6 @@
 import { NativeModules } from 'react-native';
 
-type BluetoothPrinter = {
+export type BluetoothPrinter = {
   deviceName: string;
   macAddress: string;
 };
@@ -40,7 +40,7 @@ type NativeModuleType = typeof NativeModules & {
 const { ThermalPrinterModule }: NativeModuleType =
   NativeModules as NativeModuleType;
 
-interface PrinterInterface {
+export interface PrinterInterface {
   payload: string;
   autoCut: boolean;
   openCashbox: boolean;
@@ -52,13 +52,13 @@ interface PrinterInterface {
   charsetId: number;
 }
 
-interface PrintTcpInterface extends PrinterInterface {
+export interface PrintTcpInterface extends PrinterInterface {
   ip: string;
   port: number;
   timeout: number;
 }
 
-interface PrintBluetoothInterface extends PrinterInterface {
+export interface PrintBluetoothInterface extends PrinterInterface {
   macAddress: string;
 }
 
